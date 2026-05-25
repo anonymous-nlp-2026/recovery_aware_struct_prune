@@ -15,7 +15,7 @@
         \includegraphics[width=\textwidth]{figures/paper/fig3_collapse_dynamics.pdf}
         \centerline{\small (b) $f_0$ and gradient norm diagnostics}
     \end{minipage}
-    \caption{GRPO training dynamics for four pruning criteria (100 steps, $\beta{=}0.01$, $T{=}0.4$). (a)~Reward trajectories: CKA-only reaches 0.354 peak; Random oscillates (0.14--0.19); Standard peaks at 0.081; \rasp{} at $\alpha{=}1.0$ declines to 0.010. (b)~Left: $f_0$ (zero-variance batch fraction); CKA-only remains below 0.35 while Standard and \rasp{} at $\alpha{=}1.0$ persist in the collapse zone ($f_0 > 0.5$). Right: gradient norm; \rasp{} at $\alpha{=}1.0$ exhibits near-zero norms throughout; Standard shows a transient minimum at step 90.}
+    \caption{GRPO training dynamics at 20\% sparsity. (a)~Reward trajectories. (b)~$f_0$ (zero-variance batch fraction) and gradient norm diagnostics.}
     \label{fig:training_dynamics}
 \end{figure*}
 
@@ -30,19 +30,13 @@ Our primary benchmark is GSM8K~\citep{cobbe2021gsm8k} ($N{=}1{,}319$ grade-schoo
 The unpruned model achieves 90.83\% (greedy decoding).
 
 \paragraph{Pruning methods.}
-We compare four pruning criteria at 20\% structured sparsity, all removing the same number of MLP channel groups (200 of 784 across 28 layers, ${\sim}$1.45B parameters) with identical per-layer capacity floors (${\ge}$40\% retention per layer):
-\begin{enumerate}[nosep,leftmargin=*]
-    \item \textbf{CKA-only}: structures ranked by functional overlap $F(h)$ alone (Eq.~\ref{eq:overlap}); the most redundant groups are removed regardless of gradient importance.
-    \item \textbf{Random}: uniform random selection among eligible groups.  Uses TRL's default 512-token generation limit (vs.\ 1{,}024 for other methods), which may disadvantage its reward trajectory; we retain it as a conservative lower bound rather than a direct comparison point.
-    \item \textbf{Standard}: Taylor-expansion importance $I(h)$ alone (Eq.~\ref{eq:importance}); the least important groups are removed, following LLM-Pruner~\citep{llmpruner2023}.
-    \item \textbf{\rasp{}} ($\alpha{=}1.0$): the composite score $S(h) = I(h) \times (1 - F(h))^\alpha$ (Eq.~\ref{eq:score}), removing structures that are both low-importance and functionally redundant.
-\end{enumerate}
+We compare four pruning criteria at 20\% structured sparsity, all removing 200 of 784 MLP channel groups across 28 layers (${\sim}$1.45B parameters) with identical per-layer capacity floors (${\ge}$40\% retention): \textbf{CKA-only} (Eq.~\ref{eq:cka_only}), \textbf{Standard} (Eq.~\ref{eq:standard}; LLM-Pruner~\citep{llmpruner2023}), \textbf{\rasp{}} at $\alpha{=}1.0$ (Eq.~\ref{eq:score}), and \textbf{Random} (uniform selection; uses TRL's default 512-token generation limit vs.\ 1{,}024 for other methods).
+See Section~\ref{sec:scoring} and Figure~\ref{fig:pruning_decisions} for scoring details.
 
 \paragraph{Recovery pipeline and hardware.}
-Immediately after pruning (before any recovery), all four methods produce near-zero GSM8K accuracy ($<$2\%), as the pruned models fail to generate coherent reasoning chains or proper termination tokens.
-All four methods then undergo matched two-stage recovery (Section~\ref{sec:recovery}): SFT warmup (2 epochs, 7{,}473 GSM8K examples, 37 min) followed by GRPO (lr $1{\times}10^{-6}$, $\beta{=}0.01$, $T{=}0.4$, 100 steps on 1{,}000 problems; full hyperparameters in Table~\ref{tab:hyperparams}, Appendix~\ref{sec:appendix_training}).
-All methods use \texttt{max\_completion\_length}{$=$}1{,}024 except Random (TRL default 512), making it a conservative comparison point.
-We repeat GRPO with 3 seeds for CKA-only, Standard, and Random (\rasp{} at $\alpha{=}1.0$ uses a single seed); CKA-only achieves 64.39\% $\pm$ 0.19\,pp, Standard 59.84\% $\pm$ 0.38\,pp (Welch's $t$, $p{=}0.0009$, $d{=}11.1$; Appendix~\ref{sec:appendix_seed}).
+Immediately after pruning, all four methods produce near-zero GSM8K accuracy ($<$2\%).
+All methods undergo matched two-stage recovery (Section~\ref{sec:recovery}): SFT warmup (2 epochs, 7{,}473 GSM8K examples, 37 min) followed by GRPO (lr $1{\times}10^{-6}$, $\beta{=}0.01$, $T{=}0.4$, 100 steps on 1{,}000 problems; full hyperparameters in Table~\ref{tab:hyperparams}, Appendix~\ref{sec:appendix_training}).
+We repeat GRPO with 3 seeds for CKA-only, Standard, and Random (\rasp{} at $\alpha{=}1.0$ uses a single seed); CKA-only achieves 64.39\% $\pm$ 0.19\,pp, Standard 59.84\% $\pm$ 0.38\,pp (Welch's $t$, $p{<}0.001$; Appendix~\ref{sec:appendix_seed}).
 The ``Unpruned'' baseline in Table~\ref{tab:decoupling} uses the same SFT-warmup checkpoint; the 9.56\,pp gap from the pre-warmup 90.83\% reflects warmup on a reduced training set, not pruning loss.
 All experiments run on 2$\times$ NVIDIA RTX PRO 6000 GPUs (94\,GB VRAM each).
 
@@ -51,11 +45,16 @@ All experiments run on 2$\times$ NVIDIA RTX PRO 6000 GPUs (94\,GB VRAM each).
 \label{sec:recovery_gradient}
 
 Under GRPO training, the four pruning criteria produce a clear recovery capacity spectrum: CKA-only $\gg$ Random $\gg$ Standard $>$ \rasp{} at $\alpha{=}1.0$ (Table~\ref{tab:recovery_gradient}, Figure~\ref{fig:training_dynamics}).
-The pruning criterion, rather than training configuration, determines whether the model learns, stagnates, or exhibits reward collapse.
+The pruning criterion, rather than training configuration, determines whether the model learns, stagnates, or collapses.
 
 Among these configurations, only the diversity-maximizing criterion (CKA-only) sustains active learning: peak reward 0.354 with $f_0$ as low as 0.125 (Figure~\ref{fig:training_dynamics}b).
-Random, under a shorter generation limit, stagnates (reward 0.14--0.19, min $f_0 = 0.300$); Standard exhibits borderline collapse ($f_0 \geq 0.50$, peak reward 0.081); \rasp{} at $\alpha{=}1.0$ exhibits complete reward collapse ($f_0 \geq 0.675$, reward declining to 0.010, with near-zero KL divergence indicating minimal policy movement; Appendix~\ref{sec:appendix_kl}).
-The dose-response analysis (\S\ref{sec:sparsity_cliff}) confirms CKA weighting as the critical variable: increasing $\alpha$ from 1.0 to 2.0 shifts \rasp{} from reward collapse to peak recovery (66.11\% vs.\ 64.39\% for CKA-only on GSM8K).
+Random, under a shorter generation limit, stagnates (reward 0.14--0.19, min $f_0 = 0.300$); Standard exhibits borderline collapse ($f_0 \geq 0.50$, peak reward 0.081); \rasp{} at $\alpha{=}1.0$ exhibits complete reward collapse ($f_0 \geq 0.675$, reward declining to 0.010, with near-zero KL divergence consistent with minimal policy movement; Appendix~\ref{sec:appendix_kl}).
+
+This ordering does not mirror post-SFT accuracy.
+\label{sec:sft_gradient}
+Under SFT alone the ranking is CKA-only $>$ \rasp{} at $\alpha{=}1.0$ $>$ Standard $>$ Random, yet the spectrum reverses the \rasp{}/Standard ordering: Standard exhibits higher peak reward than \rasp{} despite lower SFT accuracy (Table~\ref{tab:recovery_gradient}).
+The spectrum thus tracks structural properties rather than training-stage accuracy, and the dose-response analysis (\S\ref{sec:sparsity_cliff}) confirms CKA weighting as the critical variable.
+Given the scale of these dynamics, one would expect equally large accuracy differences.
 
 
 \subsection{Reward-Accuracy Decoupling}
@@ -66,66 +65,68 @@ The dose-response analysis (\S\ref{sec:sparsity_cliff}) confirms CKA weighting a
 \begin{figure}[t]
     \centering
     \includegraphics[width=\columnwidth]{figures/paper/fig_sft_grpo_scatter.pdf}
-    \caption{SFT vs.\ GRPO accuracy across all pruning criteria and sparsity levels on GSM8K ($N{=}1{,}319$). Points near the $y{=}x$ line indicate reward-accuracy decoupling: despite 4.4$\times$ peak reward gaps (Figure~\ref{fig:training_dynamics}a), GRPO yields minimal accuracy change ($|\Delta| \leq 1$\,pp for all fine-grained methods at 20--25\%). \rasp{} points correspond to $\alpha{=}1.0$.}
+    \caption{SFT vs.\ GRPO accuracy on GSM8K across criteria and sparsity levels. Points near $y{=}x$ indicate reward-accuracy decoupling.}
     \label{fig:sft_grpo_scatter}
 \end{figure}
 
-Despite the 4.4$\times$ peak reward gap, GRPO produces minimal accuracy change (Figure~\ref{fig:sft_grpo_scatter}): all fine-grained methods at 20\% sparsity differ by $|\Delta| < 1$\,pp (CKA-only $+$0.48, Standard $+$0.55, Random $-$0.53, \rasp{} at $\alpha{=}1.0$ $-$0.61\,pp; Table~\ref{tab:decoupling}).
+The opposite holds.
+Despite the 4.4$\times$ peak reward gap, GRPO produces minimal accuracy change over SFT (Figure~\ref{fig:sft_grpo_scatter}): at 20\% sparsity, all fine-grained methods differ by $|\Delta| < 1$\,pp (CKA-only $+$0.48, Standard $+$0.55, Random $-$0.53, \rasp{} at $\alpha{=}1.0$ $-$0.61\,pp; Table~\ref{tab:decoupling}).
 We term this \emph{reward-accuracy decoupling} (observed at 20--25\% fine-grained MLP sparsity): reward trajectory reflects the model's capacity to learn from RL signal, not downstream accuracy.
-At 20\% sparsity, the four fine-grained criteria show mean $|\Delta| {=} 0.54$\,pp (max $0.61$\,pp); across the full $\alpha$ dose-response spectrum, $|\Delta|$ remains below $1.14$\,pp.
 
-The degree of decoupling varies with sparsity: at 15\%, GRPO amplifies the CKA-only advantage (SFT gap 5.69\,pp $\to$ GRPO gap 7.20\,pp); at 20--25\%, $|\Delta| < 1$\,pp without exception across all four fine-grained criteria (Tables~\ref{tab:decoupling},~\ref{tab:cross_sparsity}; Appendix~\ref{sec:appendix_cross_sparsity}); dose-response $\alpha$ variations remain below $1.14$\,pp (Table~\ref{tab:alpha}; MATH-500 within noise, Appendix~\ref{sec:appendix_math500}).
+Decoupling is not universal: at 15\% sparsity, GRPO amplifies the CKA-only advantage (SFT gap 5.69\,pp $\to$ GRPO gap 7.20\,pp), but at 20--25\% $|\Delta|$ remains below 1\,pp without exception (Tables~\ref{tab:decoupling},~\ref{tab:cross_sparsity}; Appendix~\ref{sec:appendix_cross_sparsity}), and dose-response $\alpha$ variations stay within $1.14$\,pp (Table~\ref{tab:alpha}; Appendix~\ref{sec:appendix_math500}).
 
-Two One-Sided Tests (TOST) equivalence testing ($\varepsilon{=}2$\,pp, chosen as ${\approx}4\times$ cross-seed $\sigma$; $N{=}1{,}319$ paired examples) confirms statistical equivalence for 7/8 comparisons ($p{<}0.05$; margin justification and per-pair results in Appendix~\ref{sec:appendix_tost}), robust across seeds (0.37\,pp range; Appendix~\ref{sec:appendix_multiseed}) and extended training (300 steps; \S\ref{sec:extended_analysis}).
-The endpoints of the spectrum generalize beyond GSM8K: on MATH-500~\citep{hendrycks2021math}, CKA-only and Standard both rank above \rasp{} and Random in SFT accuracy (27.4\%, 25.6\% vs.\ 21.6\%, 16.6\%), though the CKA-only--Standard gap narrows (1.8\,pp vs.\ 4.62\,pp on GSM8K; Appendix~\ref{sec:appendix_math500}).
-This compression is consistent with two factors: MATH-500's higher intrinsic difficulty---the unpruned model achieves only 53.0\% (vs.\ 90.83\% on GSM8K)---and generation-length truncation at the 2{,}048-token evaluation limit, which affects over half of dense-model responses (Appendix~\ref{sec:appendix_math500}).
-On MBPP~\citep{austin2021mbpp} all fine-grained GRPO $|\Delta| < 2$\,pp, though not statistically significant at this sample size (Appendix~\ref{sec:appendix_mbpp}).
+Small $|\Delta|$ alone does not establish equivalence; it could reflect insufficient power. Two One-Sided Tests (TOST; $\varepsilon{=}2$\,pp ${\approx}4\times$ cross-seed $\sigma$; $N{=}1{,}319$ paired examples) confirm statistical equivalence for 7/8 comparisons ($p{<}0.05$; Appendix~\ref{sec:appendix_tost}), robust across seeds (0.37\,pp range; Appendix~\ref{sec:appendix_multiseed}) and extended training (300 steps; \S\ref{sec:extended_analysis}).
+Directional trends hold on MATH-500~\citep{hendrycks2021math} (CKA-only and Standard rank above \rasp{} and Random; gap compression at higher difficulty; Appendix~\ref{sec:appendix_math500}) and MBPP~\citep{austin2021mbpp} (all fine-grained GRPO $|\Delta| < 2$\,pp; Appendix~\ref{sec:appendix_mbpp}).
 \label{sec:ood}
-ShortGPT~\citep{shortgpt2024} depth pruning is the sole exception: its GRPO delta is task-dependent ($-$1.36\,pp on GSM8K, $+$4.01\,pp on MBPP; Tables~\ref{tab:decoupling},~\ref{tab:mbpp}), unlike fine-grained methods ($|\Delta| \leq 1.8$\,pp).
-This asymmetry may reflect differing sensitivity to sequential depth: multi-step mathematical reasoning (GSM8K) relies on extended chain-of-thought computation across layers, which layer removal directly disrupts, whereas the function-level code generation tasks in MBPP depend more on local pattern matching and may benefit from reduced overthinking in shorter networks.
+ShortGPT~\citep{shortgpt2024} depth pruning is the sole exception: its GRPO delta is task-dependent ($-$1.36\,pp on GSM8K, $+$4.01\,pp on MBPP; Tables~\ref{tab:decoupling},~\ref{tab:mbpp}), unlike fine-grained methods ($|\Delta| \leq 1.8$\,pp), which suggests that layer-level removal interacts differently with RL recovery.
 
 
-\subsection{Additional Results}
+\subsection{Dose-Response Analysis}
 \label{sec:additional_results}
 
-\paragraph{Post-SFT accuracy does not predict GRPO outcome.}
-\label{sec:sft_gradient}
-Under SFT alone the ordering is CKA-only $>$ \rasp{} at $\alpha{=}1.0$ $>$ Standard $>$ Random, yet the recovery capacity spectrum (Table~\ref{tab:recovery_gradient}) reverses the \rasp{} at $\alpha{=}1.0$/Standard ordering---Standard exhibits higher peak reward than \rasp{} despite lower SFT accuracy, indicating that the spectrum tracks structural properties rather than post-SFT accuracy.
-
-\paragraph{Dose-response and sparsity limits.}
 \label{sec:sparsity_cliff}
-The CKA coefficient $\alpha$ continuously modulates recovery capacity: on GSM8K, recovery follows an inverted-U across $\alpha \in \{0.5, 1.0, 2.0, 3.0, 4.0\}$, peaking at $\alpha{=}2.0$ (66.11\%; Figure~\ref{fig:dose_response}, Table~\ref{tab:alpha}) with $|\Delta| \leq 1.14$\,pp; \rasp{} at $\alpha{=}1.0$ exhibits reward collapse while \rasp{} at $\alpha{=}4.0$ recovers to 62.77\% (Appendix~\ref{sec:appendix_alpha}).
+The recovery capacity spectrum and decoupling raise a natural question: what controls the balance between RL trainability and final accuracy?
+The CKA coefficient $\alpha$ provides a continuous knob.
+On GSM8K, recovery follows an inverted-U across $\alpha \in \{0.5, 1.0, 2.0, 3.0, 4.0\}$, peaking at $\alpha{=}2.0$ (66.11\%; Figure~\ref{fig:dose_response}, Table~\ref{tab:alpha}) with $|\Delta| \leq 1.14$\,pp; \rasp{} at $\alpha{=}1.0$ exhibits reward collapse while \rasp{} at $\alpha{=}4.0$ recovers to 62.77\% (Appendix~\ref{sec:appendix_alpha}).
 The pattern generalizes to MATH-500 ($\alpha{=}1.0$ worst at 23.0\%; higher-$\alpha$ cluster at 27.2--27.6\%; Table~\ref{tab:math500}).
 All methods collapse at 30\% sparsity (Appendix~\ref{sec:appendix_sparsity_cliff}); pruning reduces parameters by 19\% and memory by ${\sim}$28\% (Appendix~\ref{sec:appendix_inference}).
 
 
-\subsection{Extended Analysis}
+\subsection{Structural Evidence}
 \label{sec:extended_analysis}
 
-\begin{figure}[t]
+\begin{figure*}[t]
+\begin{minipage}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\columnwidth]{figures/paper/fig4_cka_heatmap.pdf}
-    \caption{Layer-wise CKA similarity between dense and pruned representations (28 layers). CKA-only diverges most from the dense model ($\mu{=}0.62$) yet achieves the highest recovery; Standard ($\mu{=}0.90$), Random ($\mu{=}0.92$), and \rasp{} at $\alpha{=}1.0$ ($\mu{=}0.88$) preserve dense fidelity but exhibit reward collapse under RL.}
+    \includegraphics[width=\textwidth]{figures/paper/fig4_cka_heatmap.pdf}
+    \caption{Layer-wise CKA similarity between dense and pruned representations. CKA-only diverges most ($\mu{=}0.62$) yet recovers best; importance-preserving criteria cluster near 1.0.}
     \label{fig:cka_heatmap}
-\end{figure}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/paper/fig5_extended_training.pdf}
+    \caption{Extended GRPO training (300 steps). (a)~Reward: Standard shows no net gain; CKA-only sustains a 5.5$\times$ gap. (b)~$f_0$: Standard remains in collapse zone.}
+    \label{fig:extended_training}
+\end{minipage}
+\end{figure*}
 
 \paragraph{Representational diversity.}
-CKA similarity between dense and pruned representations (Figure~\ref{fig:cka_heatmap}) shows that CKA-only diverges most from the dense model ($\mu{=}0.62$), while Standard ($\mu{=}0.90$), Random ($\mu{=}0.92$), and \rasp{} at $\alpha{=}1.0$ ($\mu{=}0.88$) cluster near 1.0---preserving dense fidelity retains redundant representations at the expense of diversity.
+If diversity preservation drives recovery capacity, CKA-only should diverge most from the dense model in representation space.
+Figure~\ref{fig:cka_heatmap} confirms this: CKA-only shows the lowest layer-wise CKA similarity ($\mu{=}0.62$), while Standard ($\mu{=}0.90$), Random ($\mu{=}0.92$), and \rasp{} at $\alpha{=}1.0$ ($\mu{=}0.88$) cluster near 1.0; high fidelity to the dense model comes at the cost of diversity.
+Mechanistically, removing high-overlap structures forces the model to redistribute computation across functionally diverse pathways, creating richer gradient landscapes: diverse structures produce varied responses to the same prompt, generating the reward variance that GRPO requires for policy improvement.
 CKA-only concentrates pruning in early layers (L0--9, 72.5\% of removed groups; Appendix~\ref{sec:appendix_overlap},~\ref{sec:appendix_depth_first}), yielding 2.89$\times$ mean gradient magnitude versus Standard (55/56 layer groups $p{<}0.05$; Appendix~\ref{sec:appendix_gradient}).
 On MATH-500, CKA-only truncates only 22\% of completions (mean 655 tokens) versus Standard's 44\% (mean 1{,}128 tokens), yet achieves equal or higher accuracy (Table~\ref{tab:math500}).
 
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\columnwidth]{figures/paper/fig5_extended_training.pdf}
-    \caption{Extended GRPO training (300 steps, 3$\times$ budget). (a)~Standard reward: zero net gain (0.054$\to$0.056); CKA-only sustains a 5.5$\times$ gap. (b)~Standard $f_0$ remains in the collapse zone ($>$0.5); CKA-only stays below 0.30.}
-    \label{fig:extended_training}
-\end{figure}
-
 \paragraph{Extended training does not resolve collapse.}
-Extending GRPO from 100 to 300 steps (Figure~\ref{fig:extended_training}; Appendix~\ref{sec:appendix_extended}), Standard shows no net improvement (reward 0.054--0.058, $f_0 > 0.5$ throughout), while CKA-only sustains a 5.5$\times$ gap (0.308 vs 0.056 at step 300), suggesting the gap is structural rather than a matter of training budget.
+A natural objection is that importance-dominated criteria simply need more training.
+When GRPO is extended from 100 to 300 steps (Figure~\ref{fig:extended_training}; Appendix~\ref{sec:appendix_extended}), Standard shows no net improvement (reward 0.054--0.058, $f_0 > 0.5$ throughout), while CKA-only sustains a 5.5$\times$ gap (0.308 vs.\ 0.056 at step 300). This persistent gap confirms that the divergence is structural rather than a matter of training budget.
+The $f_0$ trajectory reinforces this conclusion: Standard enters the collapse zone ($f_0 > 0.5$) within the first 10 steps and never recovers, while CKA-only maintains $f_0 < 0.35$ throughout.
+This indicates that the capacity for reward-driven learning is determined at pruning time, not during recovery: importance-preserving pruning creates a structurally homogeneous model that cannot generate the response diversity GRPO needs, and additional training cannot compensate for this missing structural prerequisite.
 
 \paragraph{Cross-scale and cross-model generalization.}
-Preliminary evidence at 1.5B scale (Table~\ref{tab:cross_scale}; Appendix~\ref{sec:appendix_cross_scale}) preserves the three-method ordering.
-On Qwen2.5-Math-7B, a different model within the Qwen2.5 family (Appendix~\ref{sec:appendix_cross_arch}), CKA-only recovers from 1.0\% post-prune to 51.50\% vs.\ Standard's 21.00\%.
+The spectrum ordering also holds beyond the primary model.
+Preliminary evidence at 1.5B scale (Table~\ref{tab:cross_scale}; Appendix~\ref{sec:appendix_cross_scale}) preserves the three-method ordering, and on Qwen2.5-Math-7B (Appendix~\ref{sec:appendix_cross_arch}), CKA-only recovers from 1.0\% post-prune to 51.50\% vs.\ Standard's 21.00\%.
+This 30.5\,pp cross-model gap, substantially larger than the 4.6\,pp difference on the primary model, suggests that diversity preservation becomes increasingly important as architectural variations reduce the transferability of importance-based scoring.
 
 

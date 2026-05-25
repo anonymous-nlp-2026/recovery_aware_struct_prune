@@ -23,6 +23,13 @@ We use Group Relative Policy Optimization (GRPO;~\citealp{shao2024grpo}) as the 
 \subsection{Structural Analysis}
 \label{sec:structural_analysis}
 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/paper/fig_intra_layer_cka.pdf}
+    \caption{Intra-layer pairwise CKA similarity between 28 MLP channel groups in Layer~27. Most groups are highly redundant, but Group~4 is functionally unique.}
+    \label{fig:intra_layer_cka}
+\end{figure}
+
 All four pruning criteria share a common structural analysis stage that computes two scores per structure: \emph{importance} $I(h)$ capturing the structure's contribution to reasoning, and \emph{functional overlap} $F(h)$ measuring representational redundancy with other structures in the same layer.
 
 \paragraph{Calibration data.}
@@ -56,6 +63,7 @@ The functional overlap of $g_i$ is the mean pairwise CKA with other groups in th
 We apply the same intra-layer CKA overlap to MLP channel groups, partitioning each MLP intermediate dimension into equal-sized groups.
 Unlike prior work that uses inter-layer CKA to identify globally redundant layers for depth pruning~\citep{mpruner2024,lachance2022cka}, we use \emph{intra-layer} CKA between individual structures to measure per-structure functional redundancy.
 Computing all pairwise CKA scores adds minimal overhead ($O(L \cdot k^2)$, $k \le 28$; $<$2 min on one GPU).
+Figure~\ref{fig:intra_layer_cka} illustrates the resulting intra-layer CKA matrix for Layer~27: most groups are highly redundant, but a few (e.g., Group~4) are functionally unique.
 
 \paragraph{CKA reliability.}
 Our intra-layer use between structures of identical dimensionality avoids sensitivities identified for cross-layer comparisons~\citep{davari2023cka,klabunde_similarity_survey_2023}; rankings are stable across calibration sizes (Spearman $\rho \geq 0.964$; Appendix~\ref{sec:appendix_cka_stability}).
@@ -80,41 +88,48 @@ This is the industry-standard criterion that retains gradient-important structur
     S_\text{rasp}(h) = I(h) \times \big(1 - F(h)\big)^\alpha,
     \label{eq:score}
 \end{equation}
-where $\alpha{=}0$ reduces to Standard (pure importance) and larger $\alpha$ increasingly favors diversity.
-Dose-response analysis (\S\ref{sec:sparsity_cliff}) reveals that $\alpha{=}1.0$ yields suboptimal results---exhibiting reward collapse under GRPO due to insufficient diversity weighting---while $\alpha{=}2.0$ achieves peak recovery.
-The multiplicative form ensures that structures with zero importance are automatically pruned ($S{=}0$) regardless of overlap; an additive alternative $\beta I(h) + (1{-}\beta)(1{-}F(h))$ would retain zero-importance structures if their overlap is low.
-Structures with high importance \emph{and} low overlap receive the highest scores and are retained; those with high overlap are penalized and pruned preferentially.
-At the empirically optimal $\alpha{=}2.0$, the diversity term $(1{-}F(h))^2$ dominates the score, making \rasp{} at $\alpha{=}2.0$ effectively CKA-guided with importance as a secondary filter (\S\ref{sec:sparsity_cliff}).
-Nevertheless, \rasp{} at $\alpha{=}2.0$ outperforms CKA-only under both recovery paradigms (GRPO: 66.11\% vs.\ 64.39\%, $+$1.72\,pp; SFT: 64.97\% vs.\ 63.91\%, $+$1.06\,pp; Table~\ref{tab:alpha}), indicating that importance filtering provides complementary signal beyond diversity preservation alone.
+where $\alpha{=}0$ reduces to Standard and larger $\alpha$ increasingly favors diversity.
+The multiplicative form ensures zero-importance structures are always pruned ($S{=}0$) regardless of overlap.
+Dose-response analysis (\S\ref{sec:sparsity_cliff}) reveals an inverted-U peaking at $\alpha{=}2.0$ (66.11\%), where the diversity term $(1{-}F(h))^2$ dominates but importance filtering still provides complementary signal ($+$1.72\,pp over CKA-only; Table~\ref{tab:alpha}).
 
 
 \paragraph{CKA-only (overlap-only).}
-CKA-only scoring disregards gradient importance, ranking structures by functional overlap alone.
-Structures with the highest mean pairwise CKA similarity to other structures in their layer are removed first:
+Structures are ranked by functional overlap alone, removing those with the highest mean pairwise CKA first:
 \begin{equation}
-    S_\text{cka}(h) = 1 - F(h).
+    S_\text{cka}(h) = 1 - F(h),
     \label{eq:cka_only}
 \end{equation}
-This criterion preserves all representationally unique structures regardless of their gradient importance, removing only those whose function is redundant with retained structures.
-$S_\text{cka}$ corresponds to the limit $\alpha \to \infty$ in Eq.~\ref{eq:score}.
+corresponding to $\alpha \to \infty$ in Eq.~\ref{eq:score}.
+This preserves all representationally unique structures regardless of gradient importance.
 
 \paragraph{Random.}
 Structures are selected uniformly at random for removal, subject to the per-layer capacity floor.
 This baseline controls for the effect of any informed scoring criterion.
 
-The four criteria span a spectrum from pure gradient importance (Standard) to pure representational diversity preservation (CKA-only), with \rasp{} at $\alpha{=}2.0$ as a diversity-dominant interpolation and Random as an uninformed control.
-The key distinction is that CKA-only retains \emph{functionally unique} structures regardless of gradient contribution: structures deemed ``unimportant'' by gradient metrics may provide non-redundant computational pathways that facilitate RL exploration~\citep{rlsqueezes2026}.
+The four criteria span a spectrum from pure importance (Standard) to pure diversity preservation (CKA-only), with \rasp{} as a parameterized interpolation (Figure~\ref{fig:pruning_decisions}).
+CKA-only retains \emph{functionally unique} structures regardless of gradient contribution, preserving non-redundant computational pathways that may support RL exploration~\citep{rlsqueezes2026}.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/paper/fig_pruning_decisions.png}
+    \caption{Pruning decisions at 20\% MLP sparsity ($\times$ = pruned, $\circ$ = retained) for the four scoring criteria.}
+    \label{fig:pruning_decisions}
+\end{figure}
 
 \subsection{Two-Stage Recovery}
 \label{sec:recovery}
 
-After pruning, all four models undergo identical two-stage recovery: (1)~a brief SFT warmup on chain-of-thought demonstrations restores end-of-sequence generation and format compliance (pruning disrupts termination behavior, making direct GRPO infeasible); (2)~GRPO with binary reward enables RL-based exploration, redistributing functionality across remaining structures~\citep{rlsqueezes2026}, in contrast to SFT which imitates fixed trajectories.
+After pruning, all four models undergo identical two-stage recovery: (1)~a brief SFT warmup on chain-of-thought demonstrations restores end-of-sequence generation and format compliance (pruning disrupts termination behavior, so direct GRPO is infeasible); (2)~GRPO with binary reward enables RL-based exploration and redistributes functionality across remaining structures~\citep{rlsqueezes2026}, in contrast to SFT which imitates fixed trajectories.
 Details in Section~\ref{sec:exp_setup} and Appendix~\ref{sec:appendix_training}.
 
 \subsection{Recovery Capacity Diagnostics}
 \label{sec:diagnostics}
 
-We define \textbf{recovery capacity} as the model's ability to benefit from post-pruning recovery training, operationalized as peak mean reward over the GRPO training horizon.
-Four diagnostics (mean reward, zero-variance batch fraction ($f_0$), gradient norm, and Kullback--Leibler (KL) divergence) distinguish three regimes: \emph{active learning} (rising reward, low $f_0$), \emph{stagnation} (flat reward), and \emph{collapse} (declining reward, high $f_0$, vanishing gradients).
-
-The complete pruning comparison procedure is given in Algorithm~\ref{alg:rasp} (Appendix~\ref{sec:appendix_algo}).
+We define \textbf{recovery capacity} as the maximum batch-mean reward over the GRPO training horizon, assessed via four diagnostics (Algorithm~\ref{alg:rasp}, Appendix~\ref{sec:appendix_algo}):
+\begin{enumerate}[nosep,leftmargin=*]
+    \item \emph{Batch-mean reward}: tracks learning progress directly.
+    \item \emph{Zero-variance batch fraction $f_0$}: the proportion of GRPO batches where all $G$ sampled responses receive the same reward (all correct or all incorrect). When $f_0 > 0.5$, more than half of batches provide no learning signal, because GRPO's group-relative advantage is zero for uniform-reward batches.
+    \item \emph{Gradient norm}: measures update magnitude; near-zero values indicate the policy is stuck.
+    \item \emph{KL divergence}: tracks cumulative policy drift from the reference model.
+\end{enumerate}
+These metrics distinguish three regimes: \emph{active learning} ($f_0 < 0.3$, sustained reward growth), \emph{stagnation} ($0.3 \leq f_0 \leq 0.5$, flat reward), and \emph{collapse} ($f_0 > 0.5$, no effective gradient on most batches).
