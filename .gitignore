@@ -1,0 +1,15 @@
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.blg
+*.out
+*.pdf
+*.synctex.gz
+__pycache__/
+*.pyc
+.DS_Store
+.env
+wandb/
+_pdf_images/
+*.egg-info/

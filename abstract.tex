@@ -1,0 +1,6 @@
+Structured pruning compresses reasoning Large Language Models (LLMs) by removing redundant components from their feed-forward sub-layers, but the pruned model requires recovery training---typically Supervised Fine-Tuning (SFT) or Reinforcement Learning with Verifiable Rewards (RLVR)---to restore reasoning capabilities.
+RLVR is widely assumed to be the superior recovery paradigm, yet our results suggest this advantage is attributable to the pruning criterion rather than an inherent property of RL\@.
+We propose Recovery-Aware Structured Pruning (\rasp{}), a parameterized scoring function that balances gradient importance with representational diversity measured via Centered Kernel Alignment (CKA).
+Across four pruning criteria applied to a 7B reasoning model, we identify a \emph{recovery capacity spectrum}: diversity-preserving criteria sustain active RL training, while importance-dominated criteria exhibit reward collapse.
+Despite this stark divergence in training dynamics, SFT and GRPO yield near-identical downstream accuracy at moderate sparsity---a phenomenon we term \emph{reward-accuracy decoupling}.
+These findings hold across three benchmarks, with preliminary cross-scale and cross-model evidence.\footnote{Code and data available at \url{https://github.com/anonymous-nlp-2026/recovery_aware_struct_prune}.}

@@ -1,0 +1,23 @@
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Structured pruning of LLMs.}
+Width pruning methods (LLM-Pruner~\citep{llmpruner2023}, Bonsai~\citep{bonsai2025}, GRASPrune~\citep{graspprune2026}) remove attention heads or MLP channels while preserving dense computation.
+Depth pruning~\citep{shortgpt2024,slicegpt2024,yang2024laco} removes entire layers but causes severe reasoning degradation~\citep{shrestha2026layerpruninglimits}; \citet{doingmore2026} revisit the trade-off under test-time scaling.
+For reasoning models, RESP~\citep{resp2025}, RAC~\citep{rac2025}, and SSGR~\citep{ssgr2025} refine calibration data but retain gradient-based importance as the scoring criterion; \citet{llms2lrms2026} confirm width pruning is more robust than depth pruning for reasoning but do not study RLVR recovery.
+A separate line uses functional structure to guide pruning: FANG~\citep{fang_2025} clusters FFN neurons by activation, FuncNet~\citep{funcnet_2025} decomposes LLMs via independent component analysis, and MPruner~\citep{mpruner2024} applies inter-layer CKA~\citep{kornblith2019cka} for depth pruning in CNNs.
+We differ in both granularity and objective: \emph{intra-layer} CKA between individual structures, optimizing for RL recovery capacity rather than immediate accuracy.
+
+\paragraph{Pruning-aware recovery.}
+\citet{selfhealing2025} show that RLVR restores pruned reasoning models to near-original accuracy, outperforming SFT, but evaluate only importance-based unstructured pruning at low sparsity (96.5\% retention).
+Under fine-grained structural pruning at 20--25\% sparsity, our controlled experiments indicate that this advantage diminishes when pruning preserves representational diversity, suggesting the effect is attributable to the pruning criterion rather than to RL itself.
+Other work optimizes complementary axes: post-pruning scaling ($P^2$~Law;~\citealp{p2law2025}), recovery data selection (PASER;~\citealp{paser2025}), joint pruning-tuning (PAT;~\citealp{pat2025}), post-hoc attention compensation (RestoreLCC;~\citealp{restorelcc_2025}), iterative prune-tune loops~\citep{boiling_frog_2026}, post-RLVR compression (OPSD;~\citealp{opsd2026}), and rollout pruning during RLVR~\citep{xu2026arrol}---but none study which \emph{pruning criterion} enables RL-based recovery.
+The Lottery Ticket Hypothesis~\citep{frankle2019lth} asks which subnetworks train effectively from scratch; our recovery capacity spectrum poses the analogous question for post-pruning recovery.
+While LTH concerns pruning at initialization seeking sparse subnetworks that train from scratch, our setting involves post-training structured pruning followed by recovery; the analogy is conceptual (pruning strategy affects trainability) rather than technical.
+Concurrent work benchmarks reasoning model compression~\citep{li2025reasoning_compression} and studies whether pruning can improve reasoning efficiency~\citep{canpruning2025}, but neither isolates the pruning criterion's effect on RL recovery.
+
+\paragraph{RLVR training dynamics.}
+\citet{rlsqueezes2026} show that RLVR \emph{compresses} incorrect reasoning trajectories while SFT \emph{expands} correct ones, predicting RL--SFT complementarity.
+Our results qualify this prediction: the asymmetry manifests as a recovery capacity difference (the spectrum), but the expected accuracy gap is not observed when pruning preserves representational diversity ($|\Delta| \leq 1.8$\,pp across GSM8K, MBPP, and MATH-500; \S\ref{sec:decoupling}).
+RL instability is well studied in the RL from Human Feedback (RLHF) context~\citep{gao2023overoptimization,dong2025rlplus,shah2025comedy}; \citet{mukherjee2025rlsubnetworks} find that RL fine-tuning updates only 5--30\% of parameters, raising the question of whether pruning criteria interact with this active subnetwork.
+We connect these observations to structural pruning: the pruning criterion appears to shape susceptibility to RL collapse, while accuracy remains largely insensitive to the recovery paradigm at 20--25\% sparsity within our experimental scope.

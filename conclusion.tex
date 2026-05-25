@@ -1,0 +1,15 @@
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+
+Whether RLVR outperforms SFT for recovering pruned reasoning models appears to depend on how the model was pruned.
+Under diversity-preserving pruning at 20--25\% MLP sparsity on Qwen2.5-family models, the two paradigms produce near-identical accuracy (mean $|\Delta| {=} 0.54$\,pp; max $1.8$\,pp), yet the pruning criterion creates a 4.4$\times$ peak reward gap.
+SFT warmup recovers the bulk of accuracy (from $<$2\% post-prune to 51--64\%); GRPO exposes structural capacity differences but contributes minimal additional accuracy, a pattern that persists at 300 steps (Appendix~\ref{sec:appendix_extended}).
+The non-monotonic $\alpha$ dose-response argues against a layer-distribution confound.
+
+\paragraph{GRPO as diagnostic probe.}
+The decoupling pattern suggests that GRPO may serve as a \emph{diagnostic probe} for pruning quality at moderate sparsity: reward trajectories appear to indicate whether the pruned architecture retains sufficient diversity for RL exploration---information not accessible through SFT, which converges to similar accuracy at 20--25\% MLP sparsity.
+At 15\% sparsity, GRPO amplifies the CKA-guided advantage ($+$1.51\,pp), suggesting the transition boundary warrants future investigation.
+
+\paragraph{Implications.}
+For deployment pipelines that include post-pruning RL, diversity-preserving criteria (CKA-only or high-$\alpha$ \rasp{}) should be preferred.
+Our findings complement \citet{selfhealing2025}: while they demonstrate RLVR superiority for unstructured magnitude pruning at 96.5\% retention, within our experimental scope (20--25\% structured MLP sparsity on Qwen2.5-family models), this hierarchy dissolves under diversity-preserving pruning---the gap appears attributable to the pruning criterion rather than a fundamental property of RL recovery.
