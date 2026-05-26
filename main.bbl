@@ -60,8 +60,10 @@ MohammadReza Davari, Stefan Horoi, Amine Natik, Guillaume Lajoie, Guy Wolf, and
   reasoning capability in llms via reinforcement learning}.
 \newblock \emph{arXiv preprint arXiv:2501.12948}.
 
-\bibitem[{Deng et~al.(2025)Deng, Li, Gong, and Ren}]{deng2025grpocollapse}
-Wenlong Deng, Yushu Li, Boying Gong, and Yi~Ren. 2025.
+\bibitem[{Deng et~al.(2025)Deng, Li, Gong, Ren, Thrampoulidis, and
+  Li}]{deng2025grpocollapse}
+Wenlong Deng, Yushu Li, Boying Gong, Yi~Ren, Christos Thrampoulidis, and
+  Xiaoxiao Li. 2025.
 \newblock On group relative policy optimization collapse in agent search: The
   lazy likelihood-displacement.
 \newblock \emph{arXiv preprint arXiv:2512.04220}.
@@ -119,10 +121,10 @@ Jaehoon Kim and Dongha Lee. 2026.
   {RLVR} teaches: A post-{RL} compaction stage for reasoning models}.
 \newblock \emph{arXiv preprint arXiv:2605.06188}.
 
-\bibitem[{Klabunde et~al.(2023)Klabunde, Schumacher, Strohmaier, and
+\bibitem[{Klabunde et~al.(2025)Klabunde, Schumacher, Strohmaier, and
   Lemmerich}]{klabunde_similarity_survey_2023}
 Max Klabunde, Tobias Schumacher, Markus Strohmaier, and Florian Lemmerich.
-  2023.
+  2025.
 \newblock \href {https://arxiv.org/abs/2305.06329} {Similarity of neural
   network models: A survey of functional and representational measures}.
 \newblock \emph{ACM Computing Surveys}, 57(9).
@@ -166,13 +168,14 @@ Yijiang Liu, Huanrui Yang, Youxin Chen, Rongyu Zhang, Miao Wang, Yuan Du, and
 \newblock In \emph{Proceedings of the 39th AAAI Conference on Artificial
   Intelligence (AAAI)}.
 
-\bibitem[{Lucas et~al.(2025)Lucas, Behdin, Wang, Song, Tang, and
+\bibitem[{Lucas et~al.(2026)Lucas, Behdin, Wang, Song, Tang, and
   Mazumder}]{rac2025}
 Ryan Lucas, Kayhan Behdin, Zhipeng Wang, Qingquan Song, Shao Tang, and Rahul
-  Mazumder. 2025.
+  Mazumder. 2026.
 \newblock \href {https://arxiv.org/abs/2509.12464} {Reasoning models can be
   accurately pruned via chain-of-thought reconstruction}.
-\newblock In \emph{NeurIPS 2025 Workshop on Efficient Reasoning}.
+\newblock In \emph{Proceedings of the 14th International Conference on Learning
+  Representations (ICLR)}.
 
 \bibitem[{Ma et~al.(2023)Ma, Fang, and Wang}]{llmpruner2023}
 Xinyin Ma, Gongfan Fang, and Xinchao Wang. 2023.
@@ -181,14 +184,13 @@ Xinyin Ma, Gongfan Fang, and Xinchao Wang. 2023.
 \newblock In \emph{Advances in Neural Information Processing Systems
   (NeurIPS)}.
 
-\bibitem[{Matsutani et~al.(2026)Matsutani, Takashiro, Minegishi, Kojima,
+\bibitem[{Matsutani et~al.(2025)Matsutani, Takashiro, Minegishi, Kojima,
   Iwasawa, and Matsuo}]{rlsqueezes2026}
 Kohsei Matsutani, Shota Takashiro, Gouki Minegishi, Takeshi Kojima, Yusuke
-  Iwasawa, and Yutaka Matsuo. 2026.
+  Iwasawa, and Yutaka Matsuo. 2025.
 \newblock \href {https://arxiv.org/abs/2509.21128} {Rl squeezes, sft expands: A
   comparative study of reasoning llms}.
-\newblock In \emph{Proceedings of the 14th International Conference on Learning
-  Representations (ICLR)}.
+\newblock \emph{arXiv preprint arXiv:2509.21128}.
 
 \bibitem[{Men et~al.(2024)Men, Xu, Zhang, Wang, Lin, Lu, Han, and
   Chen}]{shortgpt2024}
@@ -211,10 +213,10 @@ Sagnik Mukherjee, Lifan Yuan, Dilek Hakkani-T{\"u}r, and Hao Peng. 2025.
   models.
 \newblock \emph{arXiv preprint arXiv:2505.11711}.
 
-\bibitem[{Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Zhang, Li, Wu, and
-  Guo}]{shao2024grpo}
-Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Mingchuan Zhang,
-  Y.K. Li, Y.~Wu, and Daya Guo. 2024.
+\bibitem[{Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu,
+  and Guo}]{shao2024grpo}
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
+  Zhang, Mingchuan Zhang, Y.K. Li, Y.~Wu, and Daya Guo. 2024.
 \newblock \href {https://arxiv.org/abs/2402.03300} {Deepseekmath: Pushing the
   limits of mathematical reasoning in open language models}.
 \newblock \emph{arXiv preprint arXiv:2402.03300}.
@@ -253,8 +255,7 @@ Ziyang Wang, Jiangfeng Xiao, Chuan Xiao, Ruoxiang Li, Rui Mao, and Jianbin Qin.
   2026{\natexlab{b}}.
 \newblock \href {https://arxiv.org/abs/2604.19398} {Grasprune: Global gating
   for budgeted structured pruning of large language models}.
-\newblock In \emph{Proceedings of the 64th Annual Meeting of the Association
-  for Computational Linguistics (ACL)}.
+\newblock \emph{arXiv preprint arXiv:2604.19398}.
 
 \bibitem[{Xiang et~al.(2025)Xiang, Ji, Li, and Zhang}]{ssgr2025}
 Yang Xiang, Yixin Ji, Juntao Li, and Min Zhang. 2025.
