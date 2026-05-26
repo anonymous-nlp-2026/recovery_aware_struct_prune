@@ -106,7 +106,7 @@ Reward-accuracy decoupling holds at every $\alpha$ value: $|\Delta| \leq 1.14$\,
 
 To test whether importance-dominated criteria simply need more training to overcome collapse (\S\ref{sec:extended_analysis}), we extend GRPO from 100 to 300 steps for CKA-only and Standard (Figure~\ref{fig:extended_training}).
 At 300 steps, GSM8K accuracy remains unchanged: CKA-only 64.37\% (identical to the 100-step seed 42 result), Standard 59.29\% (within the 100-step seed variance of $\pm$0.38\,pp).
-CKA-only reward rises from 0.354 (peak at step 100) to 0.308 (step 300), yet accuracy does not improve, directly confirming reward-accuracy decoupling at this training horizon.
+CKA-only reward decreases from 0.354 (peak at step 100) to 0.308 (step 300), yet accuracy does not improve, directly confirming reward-accuracy decoupling at this training horizon.
 Standard reward remains flat (0.054--0.058) with $f_0 > 0.5$ throughout, confirming that additional training does not resolve the structural collapse identified in Section~\ref{sec:recovery_gradient}.
 
 \section{MATH-500 Out-of-Distribution Evaluation}
@@ -119,7 +119,7 @@ However, the CKA-only--Standard gap narrows substantially: from 4.6\,pp (GSM8K S
 Middle-ranked methods also swap positions (Standard $>$ \rasp{} on MATH-500 vs.\ \rasp{} $>$ Standard on GSM8K).
 This narrowing reflects two compounding factors: MATH-500's higher intrinsic difficulty (the unpruned model achieves only 53.0\% vs.\ 90.83\% on GSM8K) and generation-length truncation at the 2{,}048-token evaluation limit (over half of dense-model responses are truncated; Table~\ref{tab:math500}), both of which compress all pruned methods toward a performance floor and reduce inter-method differentiation (\S\ref{sec:ood}).
 CKA-only also produces more efficient reasoning: only 22\% of completions are truncated at the 2{,}048-token limit (mean 655 tokens) versus Standard's 44\% (mean 1{,}128 tokens), indicating that the preserved structure enables shorter reasoning chains rather than longer ones.
-The $\alpha$ dose-response effect is not statistically significant on MATH-500: SFT accuracy varies by ${\sim}$8\,pp across $\alpha$ values, but with stderr ${\approx}$2\,pp per point, attributable to high truncation rates at the 2048-token limit and floor effects at this difficulty level.
+The $\alpha$ dose-response effect is not statistically significant on MATH-500: SFT accuracy varies by ${\sim}$6\,pp across $\alpha$ values, but with stderr ${\approx}$2\,pp per point, attributable to high truncation rates at the 2048-token limit and floor effects at this difficulty level.
 The inverted-U pattern is validated on GSM8K (Table~\ref{tab:alpha}); MATH-500 does not resolve the dose-response shape.
 
 \section{MBPP Code Generation}
@@ -371,7 +371,7 @@ Standard & 300-step$^\ddagger$ & $-$0.08 & 0.007 \\
 \end{tabular}
 \end{table}
 
-We select $\varepsilon{=}2$\,pp because it is approximately $4\times$ the observed cross-seed standard deviation ($\sigma{=}0.19$\,pp for CKA-only at 20\% sparsity), ensuring the margin reflects meaningful practical differences rather than measurement noise.
+We select $\varepsilon{=}2$\,pp because it substantially exceeds the observed cross-seed standard deviation ($\sigma{=}0.19$\,pp for CKA-only, $0.38$\,pp for Standard at 20\% sparsity), ensuring the margin reflects meaningful practical differences rather than measurement noise.
 At $\varepsilon{=}2$\,pp, 7/8 comparisons reject the null ($p{<}0.05$); the remaining pair (Standard vs.\ seed 456, $\Delta{=}{-}0.99$\,pp) is borderline ($p{=}0.069$).
 At $\varepsilon{=}3$\,pp, all 8/8 are significant ($p{<}0.002$).
 At $\varepsilon{=}1$\,pp, statistical power is insufficient with binary outcomes at $N{=}1{,}319$.
@@ -387,12 +387,7 @@ At 15\% sparsity, GRPO amplifies the CKA-guided advantage ($+$1.51\,pp), suggest
 For deployment pipelines that include post-pruning RL, diversity-preserving criteria (CKA-only or high-$\alpha$ \rasp{}) should be preferred.
 Our findings complement \citet{selfhealing2025}: while they demonstrate RLVR superiority for unstructured magnitude pruning at 96.5\% retention, within our experimental scope (20--25\% structured MLP sparsity on Qwen2.5-family models), this hierarchy dissolves regardless of pruning criterion. The discrepancy likely reflects differences in experimental setup (pruning granularity, sparsity level) rather than a fundamental property of RL recovery.
 
-\section{Use of AI Assistants}
+\section{Use of AI Assistance}
 \label{sec:appendix_ai_assistants}
 
-We used Claude (Anthropic) as an AI coding and writing assistant throughout this work. Specifically:
-\begin{itemize}[nosep,leftmargin=*]
-    \item \textbf{Code:} drafting experiment scripts, data-processing pipelines, and analysis utilities; debugging and refactoring.
-    \item \textbf{Writing:} drafting and revising paper sections, polishing prose, and reformatting \LaTeX{}.
-    \item \textbf{Literature:} summarizing related papers to inform the related-work section.
-\end{itemize}
+We used Claude for coding, code drafting, debugging, and language polishing.
